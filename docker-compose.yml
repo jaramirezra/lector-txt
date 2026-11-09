@@ -1,0 +1,23 @@
+services:
+  lector:
+    build:
+      context: .
+      target: runtime
+    image: lector-txt:latest
+    container_name: lector-txt
+    ports:
+      # Solo accesible desde este equipo. La contraseña viaja por loopback.
+      - "127.0.0.1:${LECTOR_PORT:-8000}:8000"
+    environment:
+      LECTOR_MAX_FILE_MB: "${LECTOR_MAX_FILE_MB:-30}"
+      LECTOR_MAX_PAGES: "${LECTOR_MAX_PAGES:-300}"
+      LECTOR_JOB_TTL: "${LECTOR_JOB_TTL:-3600}"
+      LECTOR_MAX_PASSWORD_ATTEMPTS: "${LECTOR_MAX_PASSWORD_ATTEMPTS:-5}"
+      LECTOR_RENDER_DPI: "${LECTOR_RENDER_DPI:-120}"
+    volumes:
+      # Solo se guardan documentos temporales cifrados y páginas renderizadas.
+      - lector-jobs:/tmp/lector-txt-jobs
+    restart: unless-stopped
+
+volumes:
+  lector-jobs:

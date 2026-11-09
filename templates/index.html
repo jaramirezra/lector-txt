@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Lector a TXT · PDF y DOCX</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M30 22h30l14 14v42H30z' fill='white'/><path d='M58 22v16h16' fill='%23c7d2fe'/><path d='M40 52h22M40 61h22M40 70h14' stroke='%234f46e5' stroke-width='4' stroke-linecap='round'/></svg>">
+</head>
+<body data-max-file-mb="{{ max_file_mb }}" data-max-pages="{{ max_pages }}">
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Lector a TXT, inicio">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 3h8l5 5v13H6z"></path>
+            <path d="M14 3v6h6"></path>
+            <path d="M9 13h6M9 17h4"></path>
+          </svg>
+        </span>
+        <span class="brand-text">Lector <strong>TXT</strong></span>
+      </a>
+      <div class="topbar-actions">
+        <button type="button" class="btn btn-ghost" id="btn-new" hidden>Nuevo documento</button>
+        <button type="button" class="btn btn-primary" id="btn-export" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M4 21h16"></path>
+          </svg>
+          Exportar TXT
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section id="upload-view" class="upload-view" aria-labelledby="upload-title">
+        <div class="hero-copy">
+          <p class="eyebrow">PDF · DOCX · contraseñas</p>
+          <h1 id="upload-title">Convierte un documento en texto limpio</h1>
+          <p class="hero-text">
+            Abre el documento, revisa su contenido y quita con un clic lo que no quieres
+            en el TXT. Encabezados, pies, páginas enteras o un párrafo suelto.
+          </p>
+          <ul class="feature-list">
+            <li><span>01</span> Visualizador del documento real</li>
+            <li><span>02</span> Excluye contenido sin borrar el original</li>
+            <li><span>03</span> TXT editable antes de descargarlo</li>
+          </ul>
+        </div>
+
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Seleccionar un PDF o DOCX">
+          <div class="drop-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path>
+              <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"></path>
+            </svg>
+          </div>
+          <p class="drop-title">Arrastra tu PDF o DOCX aquí</p>
+          <p class="drop-sub">o <span>selecciona un archivo</span></p>
+          <p class="drop-hint">Máx. {{ max_file_mb }} MB · {{ max_pages }} páginas · PDF con contraseña admitido</p>
+          <div class="drop-busy" id="drop-busy" hidden>
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="drop-busy-text">Leyendo documento…</span>
+          </div>
+        </div>
+
+        <input type="file" id="file-input" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+        <p class="upload-error" id="upload-error" role="alert" hidden></p>
+        <p class="privacy">
+          Todo se procesa en tu equipo. Los archivos temporales se borran solos y las
+          contraseñas nunca se guardan en disco.
+        </p>
+      </section>
+
+      <section id="workspace" class="workspace" hidden aria-label="Espacio de trabajo">
+        <div class="doc-head">
+          <div class="doc-title">
+            <span class="kind-badge" id="doc-kind"></span>
+            <div class="doc-title-text">
+              <h2 id="doc-name"></h2>
+              <p id="doc-meta"></p>
+            </div>
+          </div>
+          <div class="doc-stats" id="doc-stats"></div>
+        </div>
+
+        <div class="warnings" id="warnings" hidden></div>
+
+        <div class="toolbar">
+          <div class="pane-tabs" role="tablist" aria-label="Vistas">
+            <button type="button" data-pane-target="doc" class="is-active" role="tab" aria-selected="true">Documento</button>
+            <button type="button" data-pane-target="blocks" role="tab" aria-selected="false">Bloques</button>
+            <button type="button" data-pane-target="result" role="tab" aria-selected="false">Resultado</button>
+          </div>
+
+          <div class="toolbar-actions">
+            <label class="search" for="search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+              </svg>
+              <input type="search" id="search" placeholder="Buscar en los bloques" autocomplete="off">
+            </label>
+            <button type="button" class="btn btn-sm" id="btn-all">Incluir todo</button>
+            <button type="button" class="btn btn-sm" id="btn-none">Excluir todo</button>
+            <button type="button" class="btn btn-sm btn-suggest" id="btn-suggest" hidden>
+              Aplicar sugerencias <span class="count" id="suggest-count"></span>
+            </button>
+            <div class="undo-group">
+              <button type="button" class="icon-btn" id="btn-undo" title="Deshacer (Ctrl+Z)" aria-label="Deshacer" disabled>↶</button>
+              <button type="button" class="icon-btn" id="btn-redo" title="Rehacer (Ctrl+Shift+Z)" aria-label="Rehacer" disabled>↷</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panes">
+          <section class="pane pane-doc is-active" data-pane="doc" aria-label="Documento">
+            <div class="pane-head">
+              <h3>Documento</h3>
+              <span class="pane-hint">Haz clic en un bloque para excluirlo</span>
+            </div>
+            <div class="pane-scroll" id="doc-scroll">
+              <div class="pdf-view" id="pdf-view"></div>
+              <div class="docx-view" id="docx-view" hidden></div>
+              <div class="empty-state" id="doc-empty" hidden>
+                <p>Este documento no tiene contenido visual que mostrar.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane pane-blocks" data-pane="blocks" aria-label="Bloques de contenido">
+            <div class="pane-head">
+              <h3>Bloques <span class="count" id="block-count"></span></h3>
+              <span class="pane-hint" id="search-status"></span>
+            </div>
+            <div class="pane-scroll" id="block-list"></div>
+          </section>
+
+          <section class="pane pane-result" data-pane="result" aria-label="Resultado de texto">
+            <div class="pane-head">
+              <h3>Resultado TXT</h3>
+              <span class="pane-hint" id="result-stats"></span>
+            </div>
+            <div class="result-body">
+              <textarea id="result" spellcheck="false" aria-label="Texto final editable"></textarea>
+              <div class="manual-note" id="manual-note" hidden>
+                <span>Texto editado a mano.</span>
+                <button type="button" class="btn-link" id="btn-regenerate">Regenerar desde bloques</button>
+              </div>
+            </div>
+            <details class="options" id="options">
+              <summary>Opciones de exportación</summary>
+              <div class="options-grid">
+                <label>Párrafos
+                  <select id="opt-sep">
+                    <option value="single">Línea en blanco</option>
+                    <option value="none">Sin separación</option>
+                    <option value="double">Dos líneas en blanco</option>
+                  </select>
+                </label>
+                <label>Listas
+                  <select id="opt-list">
+                    <option value="keep">Conservar viñeta</option>
+                    <option value="dash">Guion (-)</option>
+                    <option value="none">Sin prefijo</option>
+                  </select>
+                </label>
+                <label>Tablas
+                  <select id="opt-table">
+                    <option value="tab">Tabulaciones</option>
+                    <option value="pipe">Separador |</option>
+                    <option value="newline">Una celda por línea</option>
+                  </select>
+                </label>
+                <label>Encabezados
+                  <select id="opt-heading">
+                    <option value="none">Texto normal</option>
+                    <option value="upper">MAYÚSCULAS</option>
+                    <option value="markdown">Markdown (#)</option>
+                  </select>
+                </label>
+                <label>Codificación
+                  <select id="opt-encoding">
+                    <option value="utf-8">UTF-8</option>
+                    <option value="utf-8-sig">UTF-8 con BOM</option>
+                  </select>
+                </label>
+                <label>Fin de línea
+                  <select id="opt-newline">
+                    <option value="lf">LF (Linux/macOS)</option>
+                    <option value="crlf">CRLF (Windows)</option>
+                  </select>
+                </label>
+                <label class="check-opt">
+                  <input type="checkbox" id="opt-hyphen">
+                  Unir palabras cortadas con guion
+                </label>
+              </div>
+            </details>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="password-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pw-title">
+      <button type="button" class="modal-close" id="pw-close" aria-label="Cancelar">×</button>
+      <div class="lock-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="10" width="16" height="11" rx="2.5"></rect>
+          <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+          <circle cx="12" cy="15.5" r="1.4"></circle>
+        </svg>
+      </div>
+      <h2 id="pw-title">Documento protegido</h2>
+      <p class="pw-file" id="pw-file"></p>
+      <p class="pw-meta" id="pw-meta"></p>
+      <form id="pw-form" novalidate>
+        <label for="pw-input">Contraseña</label>
+        <div class="pw-field">
+          <input type="password" id="pw-input" autocomplete="off" spellcheck="false" required>
+          <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Mostrar contraseña">Ver</button>
+        </div>
+        <p class="pw-error" id="pw-error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block" id="pw-submit">Abrir documento</button>
+      </form>
+      <p class="pw-note">La contraseña se usa solo en memoria y no se guarda en disco.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
